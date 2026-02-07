@@ -2,6 +2,16 @@ export interface BloodTest {
   id: string;
   name: string;
   description: string;
+  benefits?: {
+    en: string;
+    hi: string;
+    ta: string;
+    te: string;
+    kn: string;
+    mr: string;
+    bn: string;
+    gu: string;
+  };
   price: number;
   originalPrice?: number;
   duration: string;

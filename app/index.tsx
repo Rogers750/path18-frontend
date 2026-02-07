@@ -1,410 +1,210 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { WebView } from 'react-native-webview';
+import { CortisolLogo } from '../src/components';
 
-import { ChatMessage, TestCard, QuickReply, TypingIndicator } from '../src/components';
-import { bloodTests, testCategories } from '../src/data/bloodTests';
-import {
-  Language,
-  languages,
-  translations,
-  formatMessage,
-} from '../src/data/translations';
-import { Message, ConversationStep, BloodTest } from '../src/types';
+export default function LandingPage() {
+  const router = useRouter();
 
-export default function ChatScreen() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [currentStep, setCurrentStep] = useState<ConversationStep>('language');
-  const [selectedTest, setSelectedTest] = useState<BloodTest | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState<Language>('en');
-  const [selectedLocation, setSelectedLocation] = useState('');
-  const [mobile, setMobile] = useState('');
-  const scrollViewRef = useRef<ScrollView>(null);
-
-  const t = (key: keyof typeof translations['en']) => translations[selectedLanguage][key];
-
-  const scrollToBottom = () => {
-    scrollViewRef.current?.scrollToEnd({ animated: true });
+  const navigateToChat = (language: 'en' | 'hi') => {
+    router.push({ pathname: '/chat', params: { lang: language } });
   };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping]);
-
-  useEffect(() => {
-    // Show connecting message
-    setIsTyping(true);
-    setTimeout(() => {
-      setMessages([{
-        id: '0',
-        text: "Please wait, connecting you with our agent...\n\nकृपया प्रतीक्षा करें, हम आपको हमारे एजेंट से जोड़ रहे हैं...",
-        isBot: true,
-        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-      }]);
-      setIsTyping(false);
-
-      // Then introduce agent
-      setTimeout(() => {
-        addBotMessage(
-          "Hi! I'm Priya from PathLab18 🙏\n\nPlease select your preferred language:\n\nकृपया अपनी भाषा चुनें:",
-          languages.map((lang) => `${lang.nativeName} (${lang.name})`)
-        );
-      }, 1500);
-    }, 1000);
-  }, []);
-
-  const addBotMessage = (text: string, quickReplies?: string[], tests?: BloodTest[]) => {
-    setIsTyping(true);
-    setTimeout(() => {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        text,
-        isBot: true,
-        timestamp: new Date().toLocaleTimeString('en-IN', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        showQuickReplies: quickReplies,
-        showTests: tests,
-      };
-      setMessages((prev) => [...prev, newMessage]);
-      setIsTyping(false);
-    }, 1000);
-  };
-
-  const addUserMessage = (text: string) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text,
-      isBot: false,
-      timestamp: new Date().toLocaleTimeString('en-IN', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-    };
-    setMessages((prev) => [...prev, newMessage]);
-  };
-
-  const handleQuickReply = (option: string) => {
-    addUserMessage(option);
-
-    if (currentStep === 'language') {
-      // Find selected language
-      const selectedLang = languages.find(
-        (lang) => option.includes(lang.nativeName) || option.includes(lang.name)
-      );
-
-      if (selectedLang) {
-        setSelectedLanguage(selectedLang.code);
-        setCurrentStep('tests');
-
-        // Show language confirmation + welcome + all tests as nudges
-        const langTranslations = translations[selectedLang.code];
-        addBotMessage(
-          `${langTranslations.languageSelected}\n\nHere are our tests - tap any to book! 👇`,
-          undefined,
-          bloodTests
-        );
-      }
-      return;
-    }
-
-    const currentT = translations[selectedLanguage];
-
-    if (currentStep === 'welcome') {
-      const welcomeOptions = currentT.welcomeOptions as string[];
-
-      if (option === welcomeOptions[0] || option === welcomeOptions[1]) {
-        // Book a test or View popular tests
-        setCurrentStep('category');
-        addBotMessage(
-          currentT.showCategories as string,
-          testCategories.map((cat) => `${cat.icon} ${cat.name}`)
-        );
-      } else if (option === welcomeOptions[2]) {
-        // Health checkup package
-        const packages = bloodTests.filter((t) => t.category === 'package');
-        setCurrentStep('tests');
-        addBotMessage(currentT.healthPackages as string, undefined, packages);
-      } else if (option === welcomeOptions[3]) {
-        // I have a prescription
-        addBotMessage(
-          currentT.prescriptionHelp as string,
-          testCategories.map((cat) => `${cat.icon} ${cat.name}`)
-        );
-        setCurrentStep('category');
-      } else if (option.includes('Book another') || option.includes('बुक') || option.includes('முன்பதிவு')) {
-        // Book another test - restart flow
-        addBotMessage(
-          currentT.welcome as string,
-          currentT.welcomeOptions as string[]
-        );
-      }
-    } else if (currentStep === 'category') {
-      const category = testCategories.find((cat) => option.includes(cat.name));
-      if (category) {
-        const categoryTests = bloodTests.filter((t) => t.category === category.id);
-        setCurrentStep('tests');
-        addBotMessage(
-          formatMessage(currentT.foundTests as string, { category: category.name }),
-          undefined,
-          categoryTests
-        );
-      }
-    } else if (currentStep === 'appointment') {
-      const appointmentOptions = currentT.appointmentOptions as string[];
-
-      if (option === appointmentOptions[0] || option === appointmentOptions[1]) {
-        // Tomorrow morning or evening
-        setCurrentStep('location');
-        addBotMessage(
-          currentT.selectLocation as string,
-          currentT.locationOptions as string[]
-        );
-      } else if (option === appointmentOptions[2]) {
-        // Pick another date
-        addBotMessage(
-          currentT.pickAnotherDate as string,
-          currentT.dateOptions as string[]
-        );
-      } else {
-        // Date selected from dateOptions
-        setCurrentStep('location');
-        addBotMessage(
-          currentT.selectLocation as string,
-          currentT.locationOptions as string[]
-        );
-      }
-    } else if (currentStep === 'location') {
-      setSelectedLocation(option);
-      if (option.toLowerCase().includes('home') || option.toLowerCase().includes('घर')) {
-        setCurrentStep('mobile');
-        addBotMessage("Please share your mobile number for booking confirmation 📱");
-      } else {
-        setCurrentStep('confirmation');
-        const summary = `Great! Your booking summary:\n\n• Test: ${selectedTest?.name}\n• Price: ₹${selectedTest?.price}\n• Location: ${option}\n• Date: Tomorrow, 7:00 AM\n\nConfirm booking?`;
-        addBotMessage(summary, ['Yes, confirm ✅', 'Cancel']);
-      }
-    } else if (currentStep === 'confirmation') {
-      if (option.includes('confirm') || option.includes('Yes')) {
-        const bookingId = `PL${Date.now().toString().slice(-6)}`;
-        addBotMessage(
-          `Booking Confirmed! ✅\n\nBooking ID: ${bookingId}\n\nOur contact person will call you shortly to confirm the details.\n\nThank you for choosing PathLab18! 🙏`
-        );
-        setCurrentStep('tests');
-        setSelectedTest(null);
-      } else {
-        // Cancel - show tests again
-        setCurrentStep('tests');
-        addBotMessage("No problem! Here are our tests again:", undefined, bloodTests);
-      }
-    }
-  };
-
-  const handleTestSelect = (test: BloodTest) => {
-    setSelectedTest(test);
-    addUserMessage(`${test.name}`);
-    setCurrentStep('appointment');
-
-    const currentT = translations[selectedLanguage];
-    const discount = test.originalPrice
-      ? Math.round(((test.originalPrice - test.price) / test.originalPrice) * 100)
-      : 0;
-
-    const discountText = discount > 0
-      ? ` (${formatMessage(currentT.discount as string, { percent: discount })})`
-      : '';
-
-    const message = formatMessage(currentT.testSelected as string, {
-      testName: test.name,
-      price: test.price,
-      discount: discountText,
-    });
-
-    addBotMessage(message, currentT.appointmentOptions as string[]);
-  };
-
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
-
-    addUserMessage(inputValue);
-    const currentT = translations[selectedLanguage];
-
-    // Handle mobile number input
-    if (currentStep === 'mobile') {
-      const phoneRegex = /^[6-9]\d{9}$/;
-      if (phoneRegex.test(inputValue.trim())) {
-        setMobile(inputValue.trim());
-        setCurrentStep('confirmation');
-        const summary = `Perfect! Your booking summary:\n\n• Test: ${selectedTest?.name}\n• Price: ₹${selectedTest?.price}\n• Location: Home Collection\n• Mobile: ${inputValue.trim()}\n• Date: Tomorrow, 7:00 AM\n\nConfirm booking?`;
-        addBotMessage(summary, ['Yes, confirm ✅', 'Cancel']);
-      } else {
-        addBotMessage("Please enter a valid 10-digit mobile number");
-      }
-      setInputValue('');
-      return;
-    }
-
-    const lowerInput = inputValue.toLowerCase();
-    if (lowerInput.includes('thyroid') || lowerInput.includes('tsh') || lowerInput.includes('थायरॉ')) {
-      const thyroidTests = bloodTests.filter(
-        (t) =>
-          t.name.toLowerCase().includes('thyroid') ||
-          t.name.toLowerCase().includes('tsh')
-      );
-      addBotMessage(
-        formatMessage(currentT.foundTests as string, { category: 'thyroid' }),
-        undefined,
-        thyroidTests
-      );
-      setCurrentStep('tests');
-    } else if (
-      lowerInput.includes('diabetes') ||
-      lowerInput.includes('sugar') ||
-      lowerInput.includes('मधुमेह') ||
-      lowerInput.includes('शुगर')
-    ) {
-      const diabetesTests = bloodTests.filter((t) => t.category === 'diabetes');
-      addBotMessage(
-        formatMessage(currentT.foundTests as string, { category: 'diabetes' }),
-        undefined,
-        diabetesTests
-      );
-      setCurrentStep('tests');
-    } else if (lowerInput.includes('vitamin') || lowerInput.includes('विटामिन')) {
-      const vitaminTests = bloodTests.filter((t) => t.category === 'vitamin');
-      addBotMessage(
-        formatMessage(currentT.foundTests as string, { category: 'vitamin' }),
-        undefined,
-        vitaminTests
-      );
-      setCurrentStep('tests');
-    } else {
-      addBotMessage(
-        currentT.searchHelp as string,
-        currentT.searchOptions as string[]
-      );
-    }
-
-    setInputValue('');
-  };
-
-  const currentT = translations[selectedLanguage];
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="flask" size={26} color="#6366f1" />
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>PathLab18</Text>
-            <Text style={styles.headerSubtitle}>Smart Blood Test Booking</Text>
-          </View>
-        </View>
-        <View style={styles.onlineIndicator}>
-          <View style={styles.onlineDot} />
-          <Text style={styles.onlineText}>Online</Text>
-        </View>
-      </View>
-
-      {/* Chat Messages */}
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {messages.map((message) => (
-            <View key={message.id}>
-              <ChatMessage
-                message={message.text}
-                isBot={message.isBot}
-                timestamp={message.timestamp}
-              />
-
-              {/* Show test cards in grid */}
-              {message.showTests && message.showTests.length > 0 && (
-                <View style={styles.testsGrid}>
-                  {message.showTests.map((test) => (
-                    <TestCard
-                      key={test.id}
-                      name={test.name}
-                      description={test.description}
-                      price={test.price}
-                      originalPrice={test.originalPrice}
-                      duration={test.duration}
-                      parameters={test.parameters}
-                      popular={test.popular}
-                      onSelect={() => handleTestSelect(test)}
-                    />
-                  ))}
-                </View>
-              )}
-
-              {/* Show quick replies */}
-              {message.showQuickReplies && message.showQuickReplies.length > 0 && (
-                <QuickReply options={message.showQuickReplies} onSelect={handleQuickReply} />
-              )}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <CortisolLogo size={50} color="#ef4444" textColor="#fff" />
+            <View style={styles.nav}>
+              <Text style={styles.navItem}>What We Do</Text>
+              <Text style={styles.navItem}>About</Text>
+              <Text style={styles.navItem}>Blog</Text>
+              <Text style={styles.navItem}>Login</Text>
+              <TouchableOpacity style={styles.navButton}>
+                <Text style={styles.navButtonText}>Get Started</Text>
+              </TouchableOpacity>
             </View>
-          ))}
-
-          {isTyping && <TypingIndicator />}
-        </ScrollView>
-
-        {/* Input Area */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              value={inputValue}
-              onChangeText={setInputValue}
-              placeholder={currentT.inputPlaceholder as string}
-              placeholderTextColor="#9ca3af"
-              onSubmitEditing={handleSendMessage}
-              returnKeyType="send"
-            />
           </View>
-          <TouchableOpacity
-            style={styles.sendButton}
-            onPress={handleSendMessage}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="send" size={20} color="#fff" />
+        </View>
+
+        {/* Hero Section */}
+        <View style={styles.hero}>
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>
+              Transforming{'\n'}Health Testing,{'\n'}Together.
+            </Text>
+            <Text style={styles.heroSubtitle}>
+              At Pathlab18, we combine innovative technology with modern health needs to help
+              you get accurate blood test results. We're simplifying the world of lab testing,
+              empowering people with reliable data and transforming healthcare delivery with
+              software & media tools.
+            </Text>
+            <View style={styles.heroButtons}>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => navigateToChat('en')}
+              >
+                <Text style={styles.primaryButtonText}>Get Lab Tests</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => router.push('/learn-more')}
+              >
+                <Text style={styles.secondaryButtonText}>Learn More</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Quote Section */}
+        <View style={styles.quoteSection}>
+          <Text style={styles.quote}>"APNA BLOOD TEST</Text>
+          <Text style={styles.quote}>KARWAO BOSS!"</Text>
+          <Text style={styles.quoteAuthor}>- PATHLAB18</Text>
+        </View>
+
+        {/* Purpose Section */}
+        <View style={styles.purposeSection}>
+          <Text style={styles.sectionTitle}>Our Purpose</Text>
+          <View style={styles.purposeGrid}>
+            <View style={styles.purposeCard}>
+              <Text style={styles.purposeCardTitle}>Your Health, Our Priority.</Text>
+              <Text style={styles.purposeCardText}>
+                Pathlab18 was founded with a mission to make quality blood testing accessible to everyone.
+                We believe that understanding your health through regular blood tests is the first step
+                toward a healthier life. Our team of certified lab technicians and healthcare professionals
+                work tirelessly to provide accurate, reliable results that you can trust for making
+                informed health decisions.
+              </Text>
+            </View>
+            <View style={styles.purposeCard}>
+              <Text style={styles.purposeCardTitle}>Affordable & Accurate Testing.</Text>
+              <Text style={styles.purposeCardText}>
+                We understand that healthcare costs can be overwhelming. That's why we've invested in
+                advanced diagnostic equipment and streamlined processes to bring you the most competitive
+                prices without compromising on accuracy. From basic health checkups to specialized hormone
+                and vitamin tests, we offer comprehensive blood testing services that fit your budget and
+                health needs.
+              </Text>
+            </View>
+            <View style={styles.purposeCard}>
+              <Text style={styles.purposeCardTitle}>Convenient Home Collection.</Text>
+              <Text style={styles.purposeCardText}>
+                At Pathlab18, we bring the lab to your doorstep. Our trained phlebotomists provide
+                safe, hygienic home sample collection at your convenience. No more waiting in long queues
+                or taking time off work. Book a test, choose your time slot, and get tested in the comfort
+                of your home. Same-day reports ensure you get your results quickly when it matters most.
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Join Team Section */}
+        <View style={styles.joinSection}>
+          <View style={styles.joinContent}>
+            {Platform.OS === 'web' ? (
+              <iframe
+                src="https://www.youtube.com/embed/buJyca9OJwQ"
+                style={{
+                  width: '100%',
+                  height: 300,
+                  borderRadius: 8,
+                  border: 'none',
+                }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <View style={styles.videoContainer}>
+                <WebView
+                  style={styles.video}
+                  javaScriptEnabled={true}
+                  source={{ uri: 'https://www.youtube.com/embed/buJyca9OJwQ' }}
+                />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Blood Tests Section */}
+        <View style={styles.bloodTestsSection}>
+          <Text style={styles.sectionTitle}>5 Important Blood Tests After the Age of 35</Text>
+          <View style={styles.bloodTestsGrid}>
+            <View style={styles.bloodTestCard}>
+              <Text style={styles.bloodTestTitle}>1.) Complete Blood Count</Text>
+              <Text style={styles.bloodTestText}>
+                Monitors red and white blood cell levels to detect anemia, infections, and blood disorders. Essential for assessing overall health and identifying potential medical conditions early.
+              </Text>
+            </View>
+            <View style={styles.bloodTestCard}>
+              <Text style={styles.bloodTestTitle}>2.) Blood Sugar</Text>
+              <Text style={styles.bloodTestText}>
+                Detects diabetes and prediabetes by measuring glucose levels in your blood. Early detection allows for lifestyle changes and treatment to prevent serious complications.
+              </Text>
+            </View>
+            <View style={styles.bloodTestCard}>
+              <Text style={styles.bloodTestTitle}>3.) Lipid</Text>
+              <Text style={styles.bloodTestText}>
+                Measures cholesterol and triglyceride levels to assess cardiovascular risk. High cholesterol can lead to heart disease, making this test critical for heart health monitoring.
+              </Text>
+            </View>
+            <View style={styles.bloodTestCard}>
+              <Text style={styles.bloodTestTitle}>4.) Vitamin</Text>
+              <Text style={styles.bloodTestText}>
+                Checks for deficiencies in essential vitamins like B12, D, and folate that affect energy and bone health. Deficiencies can cause fatigue, weakness, and long-term health issues.
+              </Text>
+            </View>
+            <View style={styles.bloodTestCard}>
+              <Text style={styles.bloodTestTitle}>5.) Thyroid Function Test</Text>
+              <Text style={styles.bloodTestText}>
+                Evaluates thyroid hormone levels to detect conditions like hypothyroidism and hyperthyroidism. Thyroid disorders affect metabolism, energy, and weight management significantly.
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.bookNowButton}>
+            <Text style={styles.bookNowButtonText}>Book Now!</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Footer Info */}
-        <View style={styles.footer}>
-          <View style={styles.footerItem}>
-            <Ionicons name="time-outline" size={14} color="#6b7280" />
-            <Text style={styles.footerText}>{currentT.sameDayReports}</Text>
-          </View>
-          <View style={styles.footerItem}>
-            <Ionicons name="home-outline" size={14} color="#6b7280" />
-            <Text style={styles.footerText}>{currentT.homeCollection}</Text>
-          </View>
+        {/* Chat Section */}
+        <View style={styles.chatSection}>
+          <TouchableOpacity style={styles.chatButton} onPress={() => navigateToChat('en')}>
+            <Text style={styles.chatButtonText}>Chat with our agent now</Text>
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <View style={styles.footerContent}>
+            <CortisolLogo size={50} color="#ef4444" textColor="#1f2937" />
+            <View style={styles.footerLinks}>
+              <View style={styles.footerColumn}>
+                <Text style={styles.footerColumnTitle}>CONNECT</Text>
+                <Text style={styles.footerLink}>Contact</Text>
+                <Text style={styles.footerLink}>Chat with our agent now</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.footerChatButton}
+              onPress={() => navigateToChat('en')}
+            >
+              <Text style={styles.footerChatButtonText}>Start Booking</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.copyright}>© 2025 Pathlab18. All rights reserved.</Text>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -412,114 +212,292 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
-  },
-  flex: {
-    flex: 1,
+    backgroundColor: '#fff',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#6366f1',
-    paddingHorizontal: 16,
+    backgroundColor: '#1e1b4b',
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  headerLeft: {
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  logo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
-  logoContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+  logoText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  nav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  navItem: {
+    color: '#fff',
+    fontSize: 14,
+    display: 'none', // Hide on mobile
+  },
+  navButton: {
+    backgroundColor: '#00d9ff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  navButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  hero: {
+    backgroundColor: '#1e1b4b',
+    paddingHorizontal: 20,
+    paddingVertical: 60,
+  },
+  heroContent: {
+    maxWidth: 600,
+  },
+  heroTitle: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 20,
+    lineHeight: 50,
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  heroButtons: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  primaryButton: {
+    backgroundColor: '#00d9ff',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 4,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  secondaryButton: {
+    backgroundColor: '#6366f1',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 4,
+  },
+  secondaryButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  quoteSection: {
+    backgroundColor: '#ec4899',
+    paddingVertical: 40,
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 20,
+  quote: {
+    fontSize: 32,
     fontWeight: '800',
     color: '#fff',
   },
-  headerSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  onlineIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#22c55e',
-  },
-  onlineText: {
-    fontSize: 12,
+  quoteAuthor: {
+    fontSize: 14,
     color: '#fff',
+    marginTop: 8,
   },
-  messagesContainer: {
-    flex: 1,
-  },
-  messagesContent: {
-    paddingVertical: 16,
-  },
-  testsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginLeft: 48,
-    marginRight: 16,
-    marginBottom: 16,
-    gap: 10,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    gap: 12,
-  },
-  inputWrapper: {
-    flex: 1,
-  },
-  input: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 24,
+  purposeSection: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    fontSize: 15,
+    paddingVertical: 60,
+    backgroundColor: '#f9fafb',
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 40,
     color: '#1f2937',
   },
-  sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#6366f1',
-    justifyContent: 'center',
+  purposeGrid: {
+    gap: 24,
+  },
+  purposeCard: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 8,
+  },
+  purposeCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#1f2937',
+  },
+  purposeCardText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#6b7280',
+  },
+  joinSection: {
+    backgroundColor: '#1e1b4b',
+    paddingHorizontal: 20,
+    paddingVertical: 60,
+  },
+  joinContent: {
+    gap: 32,
+  },
+  videoContainer: {
+    width: '100%',
+    height: 300,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  video: {
+    flex: 1,
+  },
+  joinText: {},
+  joinTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 16,
+  },
+  joinDescription: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: 'rgba(255,255,255,0.9)',
+    marginBottom: 24,
+  },
+  joinButton: {
+    backgroundColor: '#00d9ff',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  joinButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  chatSection: {
+    backgroundColor: '#1e1b4b',
+    paddingHorizontal: 20,
+    paddingVertical: 60,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatButton: {
+    backgroundColor: '#00d9ff',
+    paddingHorizontal: 40,
+    paddingVertical: 16,
+    borderRadius: 4,
+  },
+  chatButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 24,
-    paddingVertical: 8,
     backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
   },
-  footerItem: {
+  footerContent: {
+    gap: 32,
+    marginBottom: 24,
+  },
+  footerLogo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
-  footerText: {
+  footerLogoText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    gap: 48,
+  },
+  footerColumn: {
+    gap: 12,
+  },
+  footerColumnTitle: {
     fontSize: 12,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  footerLink: {
+    fontSize: 14,
     color: '#6b7280',
+  },
+  footerChatButton: {
+    backgroundColor: '#00d9ff',
+    paddingVertical: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  footerChatButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  copyright: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+  bloodTestsSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 60,
+    backgroundColor: '#f9fafb',
+  },
+  bloodTestsGrid: {
+    gap: 24,
+  },
+  bloodTestCard: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 8,
+  },
+  bloodTestTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#1f2937',
+  },
+  bloodTestText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#6b7280',
+  },
+  bookNowButton: {
+    backgroundColor: '#ec4899',
+    paddingHorizontal: 40,
+    paddingVertical: 14,
+    borderRadius: 4,
+    alignItems: 'center',
+    marginTop: 32,
+    alignSelf: 'center',
+  },
+  bookNowButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

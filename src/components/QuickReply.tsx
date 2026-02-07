@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 interface QuickReplyProps {
@@ -10,11 +10,7 @@ interface QuickReplyProps {
 export function QuickReply({ options, onSelect }: QuickReplyProps) {
   return (
     <Animated.View entering={FadeInUp.delay(100).duration(300)} style={styles.container}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <View style={styles.gridContent}>
         {options.map((option, index) => (
           <TouchableOpacity
             key={index}
@@ -25,7 +21,7 @@ export function QuickReply({ options, onSelect }: QuickReplyProps) {
             <Text style={styles.buttonText}>{option}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
     </Animated.View>
   );
 }
@@ -33,10 +29,12 @@ export function QuickReply({ options, onSelect }: QuickReplyProps) {
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
-    marginLeft: 40,
+    paddingLeft: 40,
+    paddingRight: 8,
   },
-  scrollContent: {
-    paddingRight: 16,
+  gridContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   button: {

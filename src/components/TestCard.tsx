@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-const CARD_WIDTH = (Dimensions.get('window').width - 48 - 16 - 10) / 2; // grid with gap
+const CARD_WIDTH = (Dimensions.get('window').width - 16 - 10) / 2; // Account for 8px padding on each side + gap
 
 const TEST_IMAGES: Record<string, string> = {
   'Lipid Profile': 'https://img.icons8.com/color/96/heart-with-pulse.png',

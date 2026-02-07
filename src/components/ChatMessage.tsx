@@ -37,19 +37,25 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     marginBottom: 12,
-    paddingHorizontal: 16,
+    marginHorizontal: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
   },
   botContainer: {
     justifyContent: 'flex-start',
   },
   userContainer: {
     justifyContent: 'flex-end',
+    paddingRight: 16,
   },
   avatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    marginRight: 10,
+    marginLeft: 0,
+    marginRight: 4,
+    marginTop: 4,
+    flexShrink: 0,
   },
   avatarImage: {
     width: 36,
@@ -57,9 +63,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   bubble: {
-    maxWidth: '75%',
+    maxWidth: '70%',
     padding: 12,
     borderRadius: 16,
+    flexShrink: 1,
   },
   botBubble: {
     backgroundColor: '#fff',
