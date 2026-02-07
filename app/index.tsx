@@ -55,7 +55,7 @@ export default function LandingPage() {
                 style={styles.primaryButton}
                 onPress={() => navigateToChat('en')}
               >
-                <Text style={styles.primaryButtonText}>Get Lab Tests</Text>
+                <Text style={styles.primaryButtonText}>Book Test Now!!! 25% off</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.secondaryButton}
