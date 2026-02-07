@@ -31,9 +31,7 @@ export default function LandingPage() {
               <Text style={styles.navItem}>About</Text>
               <Text style={styles.navItem}>Blog</Text>
               <Text style={styles.navItem}>Login</Text>
-              <TouchableOpacity style={styles.navButton}>
-                <Text style={styles.navButtonText}>Get Started</Text>
-              </TouchableOpacity>
+              <Text style={styles.navPromo}>25% off on all the tests</Text>
             </View>
           </View>
         </View>
@@ -244,16 +242,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     display: 'none', // Hide on mobile
   },
-  navButton: {
-    backgroundColor: '#00d9ff',
+  navPromo: {
+    backgroundColor: '#ec4899',
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 4,
-  },
-  navButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    borderRadius: 20,
   },
   hero: {
     backgroundColor: '#1e1b4b',
